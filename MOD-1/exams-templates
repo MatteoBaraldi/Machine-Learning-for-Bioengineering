@@ -1,0 +1,260 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/MatteoBaraldi/Machine-Learning-for-Bioengineering/blob/giovanni/MOD-1/exams-templates\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "Exercise: Hyperparameter optimization with nested cross-validation\n",
+        "You are provided with a synthetic biomedical dataset generated using make_classification(). The\n",
+        "dataset contains 500 samples and 20 features, representing a binary classification problem (e.g.,\n",
+        "healthy vs. diseased patients).\n",
+        "Your task is to build and evaluate a machine learning model using Logistic\n",
+        "Regression and nested cross-validation.\n",
+        "Requirements:\n",
+        "1. Use a Logistic Regression classifier.\n",
+        "2. Define a hyperparameter grid for the regularization parameter C with the following values:\n",
+        "o 0.01 / 0.1 / 1 / 10 / 100\n",
+        "3. Implement an inner 5-fold cross-validation loop to optimize hyperparameters using\n",
+        "GridSearchCV.\n",
+        "4. Implement an outer cross-validation loop using cross_validate with 5-fold cross-validation\n",
+        "to estimate the model’s generalization performance.\n",
+        "5. Use ROC AUC as the optimization metric during hyperparameter tuning.\n",
+        "6. Evaluate the final model using the following metrics: accuracy / ROC AUC\n",
+        "7. Report:\n",
+        "o The mean and standard deviation of accuracy across the outer folds.\n",
+        "o The mean and standard deviation of ROC AUC across the outer folds.\n",
+        "Questions (please answer in a text cell):\n",
+        "1. Why is nested cross-validation preferred over a single cross-validation procedure when\n",
+        "hyperparameters must be optimized?\n",
+        "2. Which metric (accuracy or ROC AUC) is more informative for this biomedical classification\n",
+        "problem? Explain your answer.\n",
+        "Additional analysis: effect of class imbalance\n",
+        "The initial dataset has a class distribution defined by: weights=[0.6, 0.4]\n",
+        "Repeat the analysis with increasing levels of class imbalance:\n",
+        "weights=[0.8, 0.2]\n",
+        "weights=[0.96, 0.04]\n",
+        "For each dataset:\n",
+        "1. Perform the same nested cross-validation procedure described above.\n",
+        "2. Report the mean Accuracy and mean ROC AUC obtained across the outer folds.\n",
+        "3. Compare the results obtained for the three datasets.\n",
+        "Discussion Questions (please answer in a text cell)\n",
+        "1. How does increasing class imbalance affect accuracy and ROC AUC?\n",
+        "2. Which metric appears to be more robust to class imbalance?\n",
+        "3. In a biomedical diagnosis setting, would accuracy alone be sufficient to evaluate model\n",
+        "performance? Why or why not?"
+      ],
+      "metadata": {
+        "id": "KTBMGJXMylF4"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "DO NOT MODIFY THE NEXT CELL (PENALTY of 0.5 POINTS)"
+      ],
+      "metadata": {
+        "id": "USmwjApn6aaY"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.datasets import make_classification\n",
+        "# Synthetic biomedical data\n",
+        "\n",
+        "X, y = make_classification(n_samples=500, n_features=20, n_informative=5, n_redundant=3, weights=[0.6, 0.4], class_sep=1.0, random_state=42)\n",
+        "\n"
+      ],
+      "metadata": {
+        "id": "HasnOTpV6dyN"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "PLACE BELOW YOUR CODE"
+      ],
+      "metadata": {
+        "id": "qgaKIfW96b6u"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.model_selection import KFold, cross_validate, train_test_split, GridSearchCV\n",
+        "from sklearn.metrics import mean_absolute_error\n",
+        "import numpy as np\n",
+        "SEED = 65\n",
+        "\n",
+        "outer_n_folds = 5\n",
+        "\n",
+        "inner_n_folds = 5\n",
+        "\n",
+        "C = [0.01, 0.1, 1, 10, 100]\n",
+        "\n",
+        "outer_cv = KFold(n_splits=outer_n_folds, shuffle=True, random_state=SEED)\n",
+        "\n",
+        "inner_cv = KFold(n_splits=inner_n_folds, shuffle=True, random_state=SEED)\n",
+        "\n",
+        "clf = LogisticRegression(max_iter=1000)\n",
+        "\n",
+        "p_grid = [{'C': C}]\n",
+        "\n",
+        "clf_gs = GridSearchCV(clf, param_grid=p_grid, cv=inner_cv, refit='roc_auc', scoring='roc_auc', verbose=4)\n",
+        "\n",
+        "nested_score = cross_validate(clf_gs, X=X, y=y, cv=outer_cv, return_train_score=True, return_estimator=True, scoring= ['accuracy','roc_auc'])\n",
+        "\n",
+        "acc = nested_score['test_accuracy']\n",
+        "auc = nested_score['test_roc_auc'] #INDEPENDENT ON CLASS DISTRIBUTION\n",
+        "\n",
+        "print(f\"Accuracy : mean = {acc.mean():.4f}  std = {acc.std():.4f}\")\n",
+        "print(f\"ROC AUC  : mean = {auc.mean():.4f}  std = {auc.std():.4f}\")\n",
+        "\n",
+        "# utile per il commento: quale C è stato scelto in ogni fold esterno\n",
+        "for i, est in enumerate(nested_score['estimator'], 1):\n",
+        "    print(f\"Fold {i}: C = {est.best_params_['C']}\")"
+      ],
+      "metadata": {
+        "id": "HaE-ow-nKIMw"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "1) With a single CV the same data does double duty: it picks C and it estimates\n",
+        "performance. That inflates the score, since you end up rewarding the C that happens to suit those particular folds. Nested CV keeps the two jobs apart. The inner loop chooses C, the outer loop scores the result on folds that played no part in the choice, so the outer average reflects how the whole procedure would behave on new data.\n",
+        "\n",
+        "2) ROC AUC, because the data is imbalanced (60/40) and accuracy gives too much\n",
+        "credit for getting the common class right. What you actually want to know is whether the model can rank patients by risk, and that is what ROC AUC measures, regardless of how common each class is."
+      ],
+      "metadata": {
+        "id": "8X0k1dwkQ-Ub"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import numpy as np\n",
+        "from sklearn.datasets import make_classification\n",
+        "from sklearn.linear_model import LogisticRegression\n",
+        "from sklearn.model_selection import StratifiedKFold, cross_validate, GridSearchCV\n",
+        "SEED = 65\n",
+        "C = [0.01, 0.1, 1, 10, 100]\n",
+        "weight_settings = [[0.6, 0.4], [0.8, 0.2], [0.96, 0.04]]\n",
+        "\n",
+        "results = {}\n",
+        "\n",
+        "for w in weight_settings:\n",
+        "    X, y = make_classification(n_samples=500, n_features=20, n_informative=5,\n",
+        "                               n_redundant=3, weights=w, class_sep=1.0,\n",
+        "                               random_state=42)\n",
+        "\n",
+        "    clf = LogisticRegression(max_iter=1000)\n",
+        "    p_grid = [{'C': C}]\n",
+        "\n",
+        "    # Inner loop: 5-fold CV to tune C, optimizing ROC AUC\n",
+        "    inner_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)\n",
+        "    # Outer loop: 5-fold CV to estimate generalization performance\n",
+        "    outer_cv = StratifiedKFold(n_splits=5, shuffle=True, random_state=SEED)\n",
+        "\n",
+        "    clf_gs = GridSearchCV(clf, param_grid=p_grid, cv=inner_cv, scoring='roc_auc')\n",
+        "    nested = cross_validate(clf_gs, X=X, y=y, cv=outer_cv,\n",
+        "                            scoring=['accuracy', 'roc_auc'])\n",
+        "\n",
+        "    acc, auc = nested['test_accuracy'], nested['test_roc_auc']\n",
+        "    results[tuple(w)] = (acc, auc)\n",
+        "\n",
+        "    print(f\"weights = {w}\")\n",
+        "    print(f\"  mean Accuracy = {acc.mean():.4f}  (std {acc.std():.4f})\")\n",
+        "    print(f\"  mean ROC AUC  = {auc.mean():.4f}  (std {auc.std():.4f})\")\n",
+        "    print()\n",
+        "\n",
+        "# Comparison table\n",
+        "print(\"Summary\")\n",
+        "print(f\"{'weights':<14}{'mean_acc':>12}{'mean_auc':>12}\")\n",
+        "for w, (acc, auc) in results.items():\n",
+        "    print(f\"{str(list(w)):<14}{acc.mean():>12.4f}{auc.mean():>12.4f}\")"
+      ],
+      "metadata": {
+        "colab": {
+          "base_uri": "https://localhost:8080/"
+        },
+        "id": "jNicJBqFSifZ",
+        "outputId": "3bf9c4e6-6b2c-4b1d-f88c-5e0a50837403"
+      },
+      "execution_count": null,
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "weights = [0.6, 0.4]\n",
+            "  mean Accuracy = 0.8660  (std 0.0150)\n",
+            "  mean ROC AUC  = 0.9151  (std 0.0191)\n",
+            "\n",
+            "weights = [0.8, 0.2]\n",
+            "  mean Accuracy = 0.8980  (std 0.0133)\n",
+            "  mean ROC AUC  = 0.8902  (std 0.0262)\n",
+            "\n",
+            "weights = [0.96, 0.04]\n",
+            "  mean Accuracy = 0.9560  (std 0.0049)\n",
+            "  mean ROC AUC  = 0.7775  (std 0.0865)\n",
+            "\n",
+            "Summary\n",
+            "weights           mean_acc    mean_auc\n",
+            "[0.6, 0.4]          0.8660      0.9151\n",
+            "[0.8, 0.2]          0.8980      0.8902\n",
+            "[0.96, 0.04]        0.9560      0.7775\n"
+          ]
+        }
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "1) The two metrics pull in opposite directions. As the minority class shrinks,\n",
+        "accuracy climbs (0.87 → 0.90 → 0.96) while ROC AUC drops (0.92 → 0.89 → 0.78). The rising accuracy is an artifact: at 96/4, guessing \"healthy\" every time already scores about 0.954, so the model's 0.956 is barely an improvement. ROC AUC tells the real story. With only few sick patients to learn from, the model separates the classes noticeably worse.\n",
+        "\n",
+        "2) ROC AUC. It is built from sensitivity and specificity, measured inside each class separately, and it averages over all decision thresholds. That is why it stays stable no matter how skewed the classes are. Accuracy has no such protection: it is a raw count of correct predictions, so the majority class dominates it as soon as the split gets lopsided.\n",
+        "\n",
+        "3) No. The patients who matter most in diagnosis are usually the rare ones, and\n",
+        "accuracy barely registers them. A 96% accurate model that quietly labels nearly\n",
+        "everyone \"healthy\" misses almost every real case, which in a clinical setting means missed diagnoses. You need metrics that watch the minority class directly, like recall and F1, with the threshold set by how costly a false negative is versus a false positive."
+      ],
+      "metadata": {
+        "id": "7sLoE63QToOa"
+      }
+    }
+  ]
+}
